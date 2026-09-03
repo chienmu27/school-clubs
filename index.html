@@ -82,17 +82,18 @@
         }
 
         /* ==============================
-           Google 表單 iframe
+           Google 表單 iframe (iOS 相容優化)
            ============================== */
         .google-form-wrapper {
             width: 100%;
             margin: 0;
             padding: 0;
-            overflow: hidden; /* 桌機版不顯示外框捲軸 */
+            position: relative;
+            -webkit-overflow-scrolling: touch;
         }
         .google-form-wrapper iframe {
             width: 100%;
-            height: 1800px; /* 桌機版高度 */
+            height: 1600px;
             border: none;
             display: block;
         }
@@ -118,18 +119,11 @@
         .pdf-desktop-only { display: block; }
 
         @media (max-width: 768px) {
-            /* 手機 PDF 顯示 */
             .pdf-mobile-only { display: block; }
             .pdf-desktop-only { display: none; }
 
-            /* 手機 Google 表單：外框可捲動，iframe 可捲動 */
-            .google-form-wrapper {
-                height: 100vh;
-                overflow: auto; /* 外框捲軸 */
-            }
             .google-form-wrapper iframe {
-                height: 2000px; /* 可以依內容自行調整 */
-                overflow: auto; /* 內框捲軸 */
+                height: 1900px;
             }
         }
 
@@ -150,12 +144,10 @@
             font-size: 1.3rem;
         }
 
-        /* 修改手機號碼輸入框 placeholder 顏色 */
         #phoneInput::placeholder {
-            color: #6c757d; /* 灰色 */
+            color: #6c757d;
             opacity: 1;
         }
-        
     </style>
 </head>
 
@@ -196,7 +188,6 @@
 
             <!-- 報名需知 -->
             <div class="tab-pane fade show active info-section p-2" id="info-pane" role="tabpanel" aria-labelledby="info-tab">
-                <!-- 重要提醒區塊 -->
                 <div class="highlight-box">
                     <strong>⚠️ 重要提醒：</strong> 請務必確認學生年級是否符合社團招收規定，重複報名者將以最後一次提交的時間為準。
                 </div>
@@ -242,8 +233,7 @@
                 <hr>
                 <div class="text-center mt-4">
                     <p>閱讀完畢後，請點選上方 <strong>「📝 線上報名」</strong> 頁籤進行報名。</p>
-
-                    <button class="btn btn-primary" onclick="goToFormTab()">
+                    <button class="btn btn-primary btn-lg px-4" onclick="goToFormTab()">
                         我已閱讀，前往報名 &raquo;
                     </button>
                 </div>
@@ -282,16 +272,26 @@
 
             <!-- Google 表單 -->
             <div class="tab-pane fade" id="form-pane" role="tabpanel" aria-labelledby="form-tab">
-                <div class="google-form-wrapper">
+                <div class="p-2">
+                    <!-- iOS / 手機版備援提示區塊 -->
+                    <div class="alert alert-warning d-flex justify-content-between align-items-center mb-3" role="alert">
+                        <div class="small">
+                            📱 若 iPhone / 手機畫面顯示空白或無法滑動，請點右側按鈕：
+                        </div>
+                        <a href="https://docs.google.com/forms/d/e/1FAIpQLSfDbaeTwmvifuHgyqy7k_7wst_AhcCHxQP751nIQXvWQC0dSw/viewform"
+                           target="_blank" rel="noopener" class="btn btn-sm btn-primary text-nowrap ms-2">
+                            另開全螢幕報名
+                        </a>
+                    </div>
 
-                    <iframe
-                        id="googleFormIframe"
-                        src="https://docs.google.com/forms/d/e/1FAIpQLSfDbaeTwmvifuHgyqy7k_7wst_AhcCHxQP751nIQXvWQC0dSw/viewform?embedded=true"
-                        title="社團報名表單"
-                        scrolling="yes">
-                        載入中...
-                    </iframe>
-
+                    <div class="google-form-wrapper">
+                        <iframe
+                            id="googleFormIframe"
+                            src="https://docs.google.com/forms/d/e/1FAIpQLSfDbaeTwmvifuHgyqy7k_7wst_AhcCHxQP751nIQXvWQC0dSw/viewform?embedded=true"
+                            title="社團報名表單">
+                            表單載入中...
+                        </iframe>
+                    </div>
                 </div>
             </div>
 
@@ -305,14 +305,14 @@
                             <button class="btn btn-primary" type="button" onclick="searchData()">查詢</button>
                         </div>
                         <div class="form-text text-muted mt-2">
-                            系統將列出您的所有報名紀錄。
+                            輸入報名時填寫的手機號碼（自動支援去除連字號與空格）。
                         </div>
                     </div>
                     <div id="loadingSpinner" class="text-center my-4" style="display: none;">
                         <div class="spinner-border text-primary" role="status">
                             <span class="visually-hidden">Loading...</span>
                         </div>
-                        <p class="mt-2 text-primary">資料查詢中...</p>
+                        <p class="mt-2 text-primary">資料查詢中，請稍候...</p>
                     </div>
                     <div id="errorMessage" class="alert alert-danger d-none" role="alert"></div>
                     <div id="resultArea"></div>
@@ -333,74 +333,93 @@
 <script>
     const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwwy1DPO6GYOC4xRbsMYYo9W8UWIdxih2frtRLMgDsPXmbOpvPsgMUMd6VwFNIfyaCxdA/exec";
 
-    // ✅ 表單網址集中管理（避免寫死多次）
-    const GOOGLE_FORM_URL = "https://docs.google.com/forms/d/e/1FAIpQLSfDbaeTwmvifuHgyqy7k_7wst_AhcCHxQP751nIQXvWQC0dSw/viewform?embedded=true";
-
-    function handleEnter(event) { if (event.key === "Enter") searchData(); }
-
-    // ✅ 抽出成「重載表單」函式：按按鈕、點 Tab 都會共用
-    function reloadGoogleForm() {
-        const iframe = document.getElementById("googleFormIframe");
-        if (!iframe) return;
-
-        // 重新載入（加時間戳避免快取）
-        iframe.src = GOOGLE_FORM_URL + "&_ts=" + Date.now();
+    function handleEnter(event) { 
+        if (event.key === "Enter") searchData(); 
     }
 
-    // ✅ 按「我已閱讀，前往報名」：切換 Tab + 重載表單
     function goToFormTab() {
-        document.getElementById('form-tab').click();
-
-        // 延遲一下等 Tab 顯示後再重載，避免灰屏卡住
-        setTimeout(() => {
-            reloadGoogleForm();
-        }, 250);
+        const formTab = new bootstrap.Tab(document.getElementById('form-tab'));
+        formTab.show();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
-    // ✅ 新增：只要使用者「切換到 線上報名 Tab」，就自動重載表單
-    document.addEventListener("DOMContentLoaded", function () {
-        const formTabBtn = document.getElementById("form-tab");
-        if (!formTabBtn) return;
-
-        // Bootstrap tab 事件：tab 顯示完成後觸發
-        formTabBtn.addEventListener("shown.bs.tab", function () {
-            // 顯示完成後重載
-            setTimeout(() => {
-                reloadGoogleForm();
-            }, 200);
+    // ✅ 手機號碼格式清洗函式（全形轉半形、去除連字號、空白、+886）
+    function cleanPhoneNumber(phone) {
+        if (!phone) return "";
+        let str = String(phone).trim();
+        // 1. 全形數字轉半形數字
+        str = str.replace(/[０-９]/g, function(s) {
+            return String.fromCharCode(s.charCodeAt(0) - 0xFEE0);
         });
-    });
+        // 2. 去除所有連字號、空格、括號等符號
+        str = str.replace(/[\s\-\(\)\+]/g, "");
+        // 3. 若為台灣國際碼 886 開頭，轉換為 0
+        if (str.startsWith("8869")) {
+            str = "0" + str.substring(3);
+        }
+        return str;
+    }
 
     async function searchData() {
-        const phoneInput = document.getElementById('phoneInput').value.trim();
+        const rawInput = document.getElementById('phoneInput').value;
+        const phoneInput = cleanPhoneNumber(rawInput);
         const resultArea = document.getElementById('resultArea');
         const spinner = document.getElementById('loadingSpinner');
         const errorMsg = document.getElementById('errorMessage');
+        
         resultArea.innerHTML = "";
         errorMsg.classList.add('d-none');
 
-        if (!phoneInput) { showError("⚠️ 請輸入手機號碼！"); return; }
+        if (!phoneInput || phoneInput.length < 8) { 
+            showError("⚠️ 請輸入正確的手機號碼（至少 8 碼以上）！"); 
+            return; 
+        }
 
         spinner.style.display = 'block';
         try {
-            const response = await fetch(`${SCRIPT_URL}?phone=${encodeURIComponent(phoneInput)}`);
+            // ✅ 加入時間戳記避免瀏覽器讀取快取舊資料
+            const requestUrl = `${SCRIPT_URL}?phone=${encodeURIComponent(phoneInput)}&_t=${Date.now()}`;
+            const response = await fetch(requestUrl, { cache: "no-store" });
             const textData = await response.text();
             spinner.style.display = 'none';
-            let json = JSON.parse(textData);
+
+            let json;
+            try {
+                json = JSON.parse(textData);
+            } catch (parseErr) {
+                showError("❌ 伺服器回傳格式錯誤，請確認 Google Apps Script 是否已重新部署為最新版本。");
+                return;
+            }
+
             if (json.status === 'success') {
-                if (json.data.length === 0) {
-                    resultArea.innerHTML = `<div class="alert alert-warning text-center">找不到此手機號碼 (<strong>${phoneInput}</strong>) 的報名資料。</div>`;
-                } else { renderResults(json.data); }
-            } else { showError("❌ 查詢失敗：" + json.message); }
+                if (json.data && json.data.length > 0) {
+                    renderResults(json.data);
+                } else {
+                    resultArea.innerHTML = `
+                        <div class="alert alert-warning text-center">
+                            <h5>查無報名資料</h5>
+                            <p class="mb-1">找不到手機號碼 <strong>${rawInput.trim()}</strong> 的有效報名紀錄。</p>
+                            <hr>
+                            <small class="text-muted d-block text-start">
+                                💡 <strong>溫馨提醒：</strong><br>
+                                1. 請確認輸入的手機號碼是否與報名時填寫的一致。<br>
+                                2. 若剛送出表單，系統需要 3~5 秒進行同步，請稍候再查詢。<br>
+                                3. 若確定有送出但查無資料，可能該筆提交為重複報名已被標記無效，或請洽學校體育組。
+                            </small>
+                        </div>`;
+                }
+            } else { 
+                showError("❌ 查詢失敗：" + (json.message || "發生未知錯誤")); 
+            }
         } catch (error) {
             spinner.style.display = 'none';
-            showError("📡 連線發生錯誤，請檢查網路或網址設定。");
+            showError("📡 連線發生錯誤，請檢查網路連線或請稍後再試。");
         }
     }
 
     function renderResults(data) {
         const resultArea = document.getElementById('resultArea');
-        let html = `<h5 class="mb-3 ps-2 border-start border-4 border-primary">查詢結果：共 ${data.length} 筆</h5>`;
+        let html = `<h5 class="mb-3 ps-2 border-start border-4 border-primary">查詢結果：共 ${data.length} 筆有效報名</h5>`;
         data.forEach((item) => {
             let timeStr = item.timestamp || "";
             if (timeStr.includes("T")) timeStr = timeStr.replace("T", " ").substring(0, 16);
@@ -411,7 +430,7 @@
                             <div class="col-md-8">
                                 <h4 class="card-title club-name mb-2">${item.club}</h4>
                                 <div class="text-secondary" style="font-size: 1.05rem;">
-                                    <span class="badge bg-secondary me-2">學生</span>${item.student_name}
+                                    <span class="badge bg-secondary me-2">學生</span><strong>${item.student_name}</strong>
                                     <span class="ms-2 badge bg-light text-dark border">
                                         ${item.grade} ${item.class_name} (${item.seat_num}號)
                                     </span>
